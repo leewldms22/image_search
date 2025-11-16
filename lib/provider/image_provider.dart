@@ -19,6 +19,14 @@ class ImageStateProvider extends ChangeNotifier {
   String get errorMessage => _errorMessage;
   List<ImageModel> get favorites => _favorites;
 
+  int _currentPage = 1;
+  bool _isEnd = false;
+  bool _isPaginating = false;
+
+  bool get isEnd => _isEnd;
+  bool get isPaginating => _isPaginating;
+
+
   ImageStateProvider() {
     loadFavorites();
   }
@@ -37,28 +45,50 @@ class ImageStateProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    
+
+    _currentPage = 1;
+    _isEnd = false;
+    _searchResults = [];
     _isLoading = true;
     _errorMessage = '';
     notifyListeners();
-    
-    try{
-      final apiResults = await _apiService.fetchImages(query);
 
-      for(var image in apiResults){
+    await _fetchImages(query);
+  }
+
+  Future<void> loadNextPage(String query) async {
+    if(_isEnd || _isPaginating) return;
+
+    _isPaginating = true;
+    notifyListeners();
+
+    _currentPage++;
+
+    await _fetchImages(query, isPaginating:true);
+  }
+
+  Future<void> _fetchImages(String query, {bool isPaginating = false}) async {
+    try{
+      final response = await _apiService.fetchImages(query, _currentPage);
+
+      for(var image in response.images){
         image.isFavorite = await _dbService.isFavorite(image.imageUrl);
       }
 
-      _searchResults = apiResults;
+      _searchResults.addAll(response.images);
+      _isEnd = response.isEnd;
 
       if(_searchResults.isEmpty){
         _errorMessage = '검색 결과가 없습니다.';
       }
     }catch(e){
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      _searchResults = [];
+      if(!isPaginating){
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      }
+      _currentPage = _currentPage > 1 ? _currentPage - 1 : 1;
     }finally{
       _isLoading = false;
+      _isPaginating = false;
       notifyListeners();
     }
   }

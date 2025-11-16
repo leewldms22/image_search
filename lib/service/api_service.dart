@@ -3,6 +3,13 @@ import 'dart:convert';
 import 'package:image_search/model/image_model.dart';
 import 'package:http/http.dart' as http;
 
+class ImageSearchResponse {
+  final List<ImageModel> images;
+  final bool isEnd;
+
+  ImageSearchResponse({required this.images, required this.isEnd});
+}
+
 class ApiService {
   static const String API_KEY = '0ce383048c481acadc7d46e2ad3c40fe';
   static const String BASE_URL = 'https://dapi.kakao.com/v2/search/image';
@@ -10,12 +17,12 @@ class ApiService {
     'Authorization': 'KakaoAK $API_KEY',
   };
 
-  Future<List<ImageModel>> fetchImages(String query) async {
+  Future<ImageSearchResponse> fetchImages(String query, int page) async {
     if(query.isEmpty) {
-      return [];
+      return ImageSearchResponse(images: [], isEnd: true);
     }
 
-    final uri = Uri.parse('$BASE_URL?query=$query&size=30');
+    final uri = Uri.parse('$BASE_URL?query=$query&size=30&page=$page');
 
     try {
       final response = await http.get(uri, headers: headers);
@@ -24,8 +31,12 @@ class ApiService {
        final String jsonString = utf8.decode(response.bodyBytes);
        final Map<String, dynamic> jsonResponse = json.decode(jsonString);
        final List<dynamic> documents = jsonResponse['documents'] ?? [];
+       final Map<String, dynamic> meta = jsonResponse['meta'] ?? {};
+       final bool isEnd = meta['is_end'] ?? true;
 
-       return documents.map((json) => ImageModel.fromJson(json)).toList();
+       final images = documents.map((json) => ImageModel.fromJson(json)).toList();
+
+       return ImageSearchResponse(images: images, isEnd: isEnd);
       }else{
         print('API 호출 실패: ${response.statusCode}');
         print('응답 본문: ${response.body}');
