@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   # API통신
   http: ^1.2.1
+  dio: ^5.4.1
   # 이미지 캐싱 및 표시
   cached_network_image: ^3.3.1
   # 상태관리
